@@ -12,7 +12,6 @@ const END_SCALE = 0.75;      // taille finale par rapport à la taille de dépar
 const GAP = 0.05;            // espace entre la pièce et "BOECE" (part de la hauteur)
 // ====================
 
-const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const canvas = document.getElementById('coin');
 const title = document.getElementById('title');
 
@@ -64,7 +63,7 @@ const easeOutCubic = (u) => 1 - Math.pow(1 - u, 3);
 const easeInOutCubic = (u) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
 
 // ----- load the coin -----
-let coin = null, start = 0;
+let coin = null, last = 0, t = 0;
 new GLTFLoader().load('boece_coin.glb', (gltf) => {
   coin = gltf.scene;
   const box = new THREE.Box3().setFromObject(coin);
@@ -74,12 +73,23 @@ new GLTFLoader().load('boece_coin.glb', (gltf) => {
   inner.add(coin);
   inner.scale.setScalar(2 / Math.max(size.x, size.y)); // radius 1
   holder.add(inner);
-  start = performance.now();
-  requestAnimationFrame(frame);
+  // prepare the GPU first, then start the clock on the first real frame,
+  // and only once the tab is visible, so the intro is never skipped
+  renderer.compile(scene, camera);
+  renderer.render(scene, camera); // uploads the textures before the clock starts
+  const go = () => requestAnimationFrame((now) => { last = now; frame(now); });
+  if (document.hidden) {
+    document.addEventListener('visibilitychange', function once() {
+      if (!document.hidden) { document.removeEventListener('visibilitychange', once); go(); }
+    });
+  } else go();
 });
 
 function frame(now) {
-  const t = reduceMotion ? 99 : (now - start) / 1000;
+  // time advances at most 1/30 s per frame: a slow frame slows the intro down
+  // instead of skipping part of it
+  t += Math.min((now - last) / 1000, 1 / 30);
+  last = now;
 
   // 1. fast spin that slows down and lands on the front face
   const spinU = clamp01(t / SPIN_TIME);
@@ -95,7 +105,7 @@ function frame(now) {
 
   // gentle sway once settled, so the gold keeps catching the light
   const settled = clamp01((t - SPIN_TIME - PAUSE_TIME - MOVE_TIME) / 1.5);
-  const idle = reduceMotion ? 0 : settled * Math.sin((t - SPIN_TIME) * 0.9) * 0.12;
+  const idle = settled * Math.sin((t - SPIN_TIME) * 0.9) * 0.12;
   holder.rotation.set(0, rot + idle, 0);
 
   const reveal = clamp01((moveU - 0.3) / 0.7);
