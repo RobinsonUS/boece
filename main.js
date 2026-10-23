@@ -30,6 +30,7 @@ const MAX_DPR = lowEnd ? 1.5 : 2;
 
 const canvas = document.getElementById('coin');
 const shadow = document.getElementById('shadow');
+const halo = document.getElementById('halo');
 
 // Give the canvas its final size BEFORE the 3D context exists.
 // Safari keeps the wrong display scale when a WebGL canvas is resized right after
@@ -254,6 +255,13 @@ function frame(now) {
   shadow.style.height = `${sh}px`;
   shadow.style.transform = `translate(${W / 2 - sw / 2}px, ${cy - sh / 2 + r * 0.14}px)`;
   shadow.style.opacity = '1';
+
+  // darker glow centred on the coin
+  const hs = r * 3.0;
+  halo.style.width = `${hs}px`;
+  halo.style.height = `${hs}px`;
+  halo.style.transform = `translate(${W / 2 - hs / 2}px, ${cy - hs / 2}px)`;
+  halo.style.opacity = '1';
 
   // 3. the word rises into place
   // only once the coin has fully settled: the coin and the word never touch

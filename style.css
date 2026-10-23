@@ -29,6 +29,18 @@ body {
 }
 
 /* soft shadow under the coin (a CSS filter on the WebGL canvas breaks Safari) */
+/* darker glow behind the coin so its light rim stands out */
+#halo {
+  position: fixed;
+  z-index: 0;
+  left: 0;
+  top: 0;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(92, 70, 32, 0.30) 0%, rgba(92, 70, 32, 0.20) 45%, rgba(92, 70, 32, 0) 100%);
+  pointer-events: none;
+  opacity: 0;
+}
+
 #shadow {
   position: fixed;
   z-index: 0;
