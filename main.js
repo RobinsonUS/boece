@@ -28,6 +28,16 @@ const MAX_DPR = lowEnd ? 1.5 : 2;
 const canvas = document.getElementById('coin');
 const shadow = document.getElementById('shadow');
 
+// Give the canvas its final size BEFORE the 3D context exists.
+// Safari keeps the wrong display scale when a WebGL canvas is resized right after
+// creation (default 300x150), which drew everything zoomed into the top-right corner.
+{
+  const r0 = Math.min(window.devicePixelRatio || 1, MAX_DPR);
+  canvas.style.width = `${window.innerWidth}px`;
+  canvas.style.height = `${window.innerHeight}px`;
+  canvas.width = Math.floor(window.innerWidth * r0);
+  canvas.height = Math.floor(window.innerHeight * r0);
+}
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
 const gl = renderer.getContext();
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -163,12 +173,29 @@ function fitWord() {
 
 // ----- load everything, then play -----
 let ready = 0, last = 0, t = 0;
+// third safety net: what switching tabs does by hand, i.e. make the browser
+// redraw the canvas layer from scratch
+function recomposite() {
+  canvas.style.display = 'none';
+  void canvas.offsetHeight;
+  canvas.style.display = 'block';
+}
+window.addEventListener('pageshow', () => { layout(); recomposite(); });
+
 function loaded() {
   if (++ready < 2) return;
   layout();
   renderer.compile(scene, camera);
   renderer.render(scene, camera); // uploads textures before the clock starts
-  const go = () => requestAnimationFrame((now) => { last = now; frame(now); });
+  const go = () => requestAnimationFrame((now) => {
+    // second safety net: force Safari to rebuild the canvas surface once, at the real size
+    renderer.setSize(W, H + 1);
+    renderer.setSize(W, H);
+    last = now;
+    frame(now);
+    recomposite();
+    setTimeout(recomposite, 400);
+  });
   if (document.hidden) {
     document.addEventListener('visibilitychange', function once() {
       if (!document.hidden) { document.removeEventListener('visibilitychange', once); go(); }

@@ -1,7 +1,7 @@
 :root {
-  --paper: #efe0b0;
-  --paper-light: #f7edcd;
-  --paper-dark: #e0c98a;
+  --paper: #ece4cc;
+  --paper-light: #f7f2e3;
+  --paper-dark: #d9ccaa;
 }
 
 * { box-sizing: border-box; }
