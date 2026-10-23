@@ -2,14 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>BOECE</title>
 <meta name="description" content="Fortune is a wheel. I've been on it since 524.">
 <meta name="theme-color" content="#efe0b0">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<!-- VERSION : à augmenter à chaque mise à jour pour forcer le rechargement (style.css, main.js, modèles 3D) -->
+<link rel="stylesheet" href="style.css?v=8">
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -20,7 +21,7 @@
 <body>
   <div id="shadow" aria-hidden="true"></div>
   <h1 id="title">BOECE</h1>
-  <canvas id="coin" aria-label="The BOECE coin"></canvas>
-  <script type="module" src="main.js"></script>
+  <canvas id="coin" aria-label="The BOECE coin and the word BOECE in gold"></canvas>
+  <script type="module" src="main.js?v=8"></script>
 </body>
 </html>

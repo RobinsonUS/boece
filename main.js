@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { TTFLoader } from 'three/addons/loaders/TTFLoader.js';
+import { Font } from 'three/addons/loaders/FontLoader.js';
+import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 // ===== Réglages =====
@@ -10,14 +13,23 @@ const MOVE_TIME = 1.2;       // durée de la montée (s)
 const START_SIZE = 0.62;     // diamètre de départ (part du plus petit côté de l'écran)
 const END_SCALE = 0.75;      // taille finale par rapport à la taille de départ
 const GAP = 0.05;            // espace entre la pièce et "BOECE" (part de la hauteur)
+const TEXT_HEIGHT = 0.11;    // hauteur des lettres (part de la largeur, plafonnée)
+const TEXT_SPACING = 0.16;   // espace entre les lettres (part de la hauteur des lettres)
 // ====================
 
+// same version number as in index.html, so the models are never served from an old cache
+const V = new URL(import.meta.url).searchParams.get('v') || '0';
+
+// phones and small tablets get the light model and a lower resolution
+const lowEnd = window.matchMedia('(pointer: coarse)').matches || Math.min(screen.width, screen.height) < 600;
+const MODEL = lowEnd ? 'boece_coin_lite.glb' : 'boece_coin.glb';
+const MAX_DPR = lowEnd ? 1.5 : 2;
+
 const canvas = document.getElementById('coin');
-const title = document.getElementById('title');
 const shadow = document.getElementById('shadow');
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+const gl = renderer.getContext();
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.3;
@@ -27,7 +39,7 @@ scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnviron
 const key = new THREE.DirectionalLight(0xfff3dc, 2.6);
 key.position.set(-3, 3, 5);
 scene.add(key);
-const fill = new THREE.DirectionalLight(0xfff8ea, 1.0); // soft light from the front right
+const fill = new THREE.DirectionalLight(0xfff8ea, 1.0);
 fill.position.set(3, -1, 6);
 scene.add(fill);
 
@@ -35,14 +47,25 @@ const CAM_Z = 10;
 const camera = new THREE.PerspectiveCamera(25, 1, 0.1, 100);
 camera.position.set(0, 0, CAM_Z);
 
-const holder = new THREE.Group();
-scene.add(holder);
+const holder = new THREE.Group();   // the coin
+const word = new THREE.Group();     // the gold word
+scene.add(holder, word);
 
-// ----- layout (in pixels) -----
-let W = 1, H = 1, R0 = 1, R1 = 1, endY = 0, pxToWorld = 1;
+// ----- size: always match the real screen and the real drawing buffer -----
+let W = 0, H = 0, dpr = 1, R0 = 1, R1 = 1, endY = 0, textY = 0, textPx = 0, pxToWorld = 1;
+
 function layout() {
   W = window.innerWidth; H = window.innerHeight;
-  renderer.setSize(W, H); // also sets the canvas CSS size, so it always matches
+  dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
+  renderer.setPixelRatio(dpr);
+  renderer.setSize(W, H);
+  // some browsers (Safari) silently give a smaller drawing buffer than asked;
+  // if so, use the real one, otherwise the image is drawn zoomed into a corner
+  if (gl.drawingBufferWidth !== canvas.width || gl.drawingBufferHeight !== canvas.height) {
+    dpr = Math.min(gl.drawingBufferWidth / W, gl.drawingBufferHeight / H);
+    renderer.setPixelRatio(dpr);
+    renderer.setSize(W, H);
+  }
   camera.aspect = W / H;
   camera.updateProjectionMatrix();
   const halfH = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * CAM_Z;
@@ -50,26 +73,111 @@ function layout() {
 
   R0 = (Math.min(W, H) * START_SIZE) / 2;
   R1 = R0 * END_SCALE;
+  textPx = Math.min(W * TEXT_HEIGHT, 130, H * 0.14);
   const gap = H * GAP;
-  const titleH = title.offsetHeight;
-  const groupH = 2 * R1 + gap + titleH;
+  const groupH = 2 * R1 + gap + textPx;
   const top = (H - groupH) / 2;
-  endY = top + R1;                                   // final coin centre
-  title.style.top = `${top + 2 * R1 + gap + titleH / 2}px`;
+  endY = top + R1;
+  textY = top + 2 * R1 + gap + textPx / 2;
+  fitWord();
 }
+
+function sizeIsWrong() {
+  return window.innerWidth !== W || window.innerHeight !== H ||
+    gl.drawingBufferWidth !== canvas.width || gl.drawingBufferHeight !== canvas.height ||
+    Math.abs(canvas.clientWidth - W) > 1 || Math.abs(canvas.clientHeight - H) > 1;
+}
+
 window.addEventListener('resize', layout);
-layout();
-document.fonts?.ready.then(layout);
+window.visualViewport?.addEventListener('resize', layout);
+canvas.addEventListener('webglcontextrestored', layout);
 
 // ----- easing -----
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
 const easeOutCubic = (u) => 1 - Math.pow(1 - u, 3);
 const easeInOutCubic = (u) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
 
-// ----- load the coin -----
-let coin = null, last = 0, t = 0;
-new GLTFLoader().load('boece_coin.glb', (gltf) => {
-  coin = gltf.scene;
+// ----- the gold word, modelled in 3D -----
+const goldMat = new THREE.MeshStandardMaterial({
+  color: 0xe0ac48,
+  metalness: 1,
+  roughness: 0.3,
+  transparent: true,
+  opacity: 0,
+});
+// fine hammered grain, like the coin
+{
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const g = c.getContext('2d');
+  const img = g.createImageData(256, 256);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const v = 110 + Math.random() * 40;
+    img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+    img.data[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(4, 4);
+  goldMat.bumpMap = tex;
+  goldMat.bumpScale = 0.6;
+}
+
+let wordWidth = 1, wordHeight = 1;
+function buildWord(font) {
+  const size = 1;
+  const geos = [...'BOECE'].map((ch) => {
+    const g = new TextGeometry(ch, {
+      font, size, height: 0.16, depth: 0.16, curveSegments: 10, // 'height' for three r160, 'depth' for newer
+      bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.035, bevelSegments: 5,
+    });
+    g.computeBoundingBox();
+    return g;
+  });
+  let x = 0;
+  const gap = TEXT_SPACING * size;
+  for (const g of geos) {
+    const b = g.boundingBox;
+    const m = new THREE.Mesh(g, goldMat);
+    m.position.x = x - b.min.x;
+    x += b.max.x - b.min.x + gap;
+    word.add(m);
+  }
+  word.scale.setScalar(1); // measure at real size
+  word.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(word);
+  wordWidth = box.max.x - box.min.x;
+  wordHeight = box.max.y - box.min.y;
+  const center = box.getCenter(new THREE.Vector3());
+  word.children.forEach((m) => { m.position.x -= center.x; m.position.y -= center.y; m.position.z -= box.max.z; });
+  fitWord();
+}
+
+function fitWord() {
+  // letter height in pixels, but never wider than 86% of the screen
+  let s = textPx / wordHeight;
+  s = Math.min(s, (W * 0.86) / wordWidth);
+  word.scale.setScalar(s * pxToWorld);
+}
+
+// ----- load everything, then play -----
+let ready = 0, last = 0, t = 0;
+function loaded() {
+  if (++ready < 2) return;
+  layout();
+  renderer.compile(scene, camera);
+  renderer.render(scene, camera); // uploads textures before the clock starts
+  const go = () => requestAnimationFrame((now) => { last = now; frame(now); });
+  if (document.hidden) {
+    document.addEventListener('visibilitychange', function once() {
+      if (!document.hidden) { document.removeEventListener('visibilitychange', once); go(); }
+    });
+  } else go();
+}
+
+new GLTFLoader().load(`${MODEL}?v=${V}`, (gltf) => {
+  const coin = gltf.scene;
   const box = new THREE.Box3().setFromObject(coin);
   const size = box.getSize(new THREE.Vector3());
   coin.position.sub(box.getCenter(new THREE.Vector3()));
@@ -77,52 +185,52 @@ new GLTFLoader().load('boece_coin.glb', (gltf) => {
   inner.add(coin);
   inner.scale.setScalar(2 / Math.max(size.x, size.y)); // radius 1
   holder.add(inner);
-  // prepare the GPU first, then start the clock on the first real frame,
-  // and only once the tab is visible, so the intro is never skipped
-  renderer.compile(scene, camera);
-  renderer.render(scene, camera); // uploads the textures before the clock starts
-  const go = () => requestAnimationFrame((now) => { last = now; frame(now); });
-  if (document.hidden) {
-    document.addEventListener('visibilitychange', function once() {
-      if (!document.hidden) { document.removeEventListener('visibilitychange', once); go(); }
-    });
-  } else go();
+  loaded();
 });
 
+new TTFLoader().load(`fonts/cinzel-latin-700-normal.woff?v=${V}`, (json) => {
+  buildWord(new Font(json));
+  loaded();
+});
+
+layout();
+
+// ----- animation -----
 function frame(now) {
-  // time advances at most 1/30 s per frame: a slow frame slows the intro down
-  // instead of skipping part of it
+  if (sizeIsWrong()) layout();
+
+  // time advances at most 1/30 s per frame: a slow frame slows the intro down instead of skipping it
   t += Math.min((now - last) / 1000, 1 / 30);
   last = now;
 
-  // 1. fast spin that slows down and lands on the front face
+  // 1. fast spin that slows down and lands exactly on the front face, then stays still
   const spinU = clamp01(t / SPIN_TIME);
   const rot = SPIN_TURNS * 2 * Math.PI * easeOutCubic(spinU);
 
-  // 2. move up and shrink, uncovering the title
+  // 2. move up and shrink, uncovering the word
   const moveU = easeInOutCubic(clamp01((t - SPIN_TIME - PAUSE_TIME) / MOVE_TIME));
   const r = THREE.MathUtils.lerp(R0, R1, moveU);
   const cy = THREE.MathUtils.lerp(H / 2, endY, moveU);
 
   holder.position.set(0, (H / 2 - cy) * pxToWorld, 0);
+  holder.scale.setScalar(r * pxToWorld);
+  holder.rotation.set(0, spinU < 1 ? rot : 0, 0);
 
-  // shadow follows the coin, slightly below it
+  // shadow follows the coin
   const sh = r * 2.0;
-  const sw = sh * (0.3 + 0.7 * Math.abs(Math.cos(rot)));   // narrower when the coin is edge-on
+  const sw = sh * (0.3 + 0.7 * Math.abs(Math.cos(rot)));
   shadow.style.width = `${sw}px`;
   shadow.style.height = `${sh}px`;
   shadow.style.transform = `translate(${W / 2 - sw / 2}px, ${cy - sh / 2 + r * 0.14}px)`;
   shadow.style.opacity = '1';
-  holder.scale.setScalar(r * pxToWorld);
 
-  // gentle sway once settled, so the gold keeps catching the light
-  const settled = clamp01((t - SPIN_TIME - PAUSE_TIME - MOVE_TIME) / 1.5);
-  const idle = settled * Math.sin((t - SPIN_TIME) * 0.9) * 0.12;
-  holder.rotation.set(0, rot + idle, 0);
-
+  // 3. the word rises into place
   const reveal = clamp01((moveU - 0.3) / 0.7);
-  title.style.opacity = reveal;
-  title.style.transform = `translateY(calc(-50% + ${(1 - reveal) * 14}px))`;
+  word.position.set(0, (H / 2 - textY - (1 - reveal) * 14) * pxToWorld, 0);
+  goldMat.opacity = reveal;
+  const solid = reveal >= 1;
+  if (goldMat.transparent === solid) { goldMat.transparent = !solid; goldMat.needsUpdate = true; }
+  word.visible = reveal > 0;
 
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
