@@ -6,7 +6,7 @@ import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 // ===== Réglages =====
-const SPIN_TURNS = 5;        // nombre de tours pendant la rotation rapide
+const SPIN_TURNS = 4;        // nombre de tours pendant la rotation rapide
 const SPIN_TIME = 3.3;       // durée de la rotation (s)
 const PAUSE_TIME = 0.35;     // pause sur la face avant de monter (s)
 const MOVE_TIME = 1.2;       // durée de la montée (s)
@@ -14,7 +14,7 @@ const START_SIZE = 0.62;     // diamètre de départ (part du plus petit côté 
 const END_SCALE = 0.75;      // taille finale par rapport à la taille de départ
 const GAP = 0.08;            // espace entre la pièce et "BOECE" (part de la hauteur)
 const LIFT = 0.05;           // remonte l'ensemble pièce + titre (part de la hauteur)
-const TITLE_DELAY = 0.25;    // le titre arrive après la fin de la montée (s)
+const TITLE_MARGIN = 0.35;   // le titre apparaît dès que la pièce est assez haute (part de l'espace GAP)
 const TITLE_TIME = 0.7;      // durée d'apparition du titre (s)
 const TEXT_HEIGHT = 0.11;    // hauteur des lettres (part de la largeur, plafonnée)
 const TEXT_SPACING = 0.16;   // espace entre les lettres (part de la hauteur des lettres)
@@ -176,7 +176,7 @@ function fitWord() {
 }
 
 // ----- load everything, then play -----
-let ready = 0, last = 0, t = 0;
+let ready = 0, last = 0, t = 0, titleStart = null;
 // third safety net: what switching tabs does by hand, i.e. make the browser
 // redraw the canvas layer from scratch
 function recomposite() {
@@ -236,7 +236,7 @@ function frame(now) {
 
   // 1. fast spin that slows down and lands exactly on the front face, then stays still
   const spinU = clamp01(t / SPIN_TIME);
-  const rot = SPIN_TURNS * 2 * Math.PI * easeOutQuart(spinU);
+  const rot = SPIN_TURNS * 2 * Math.PI * easeOutCubic(spinU);
 
   // 2. move up and shrink, uncovering the word
   const moveU = easeInOutCubic(clamp01((t - SPIN_TIME - PAUSE_TIME) / MOVE_TIME));
@@ -257,7 +257,11 @@ function frame(now) {
 
   // 3. the word rises into place
   // only once the coin has fully settled: the coin and the word never touch
-  const reveal = easeOutCubic(clamp01((t - SPIN_TIME - PAUSE_TIME - MOVE_TIME - TITLE_DELAY) / TITLE_TIME));
+  // the word starts as soon as the coin's bottom is clear of it: they never touch
+  const coinBottom = cy + r;
+  const wordTop = textY - textPx / 2 - 14;
+  if (titleStart === null && moveU > 0 && coinBottom < wordTop - H * GAP * TITLE_MARGIN) titleStart = t;
+  const reveal = titleStart === null ? 0 : easeOutCubic(clamp01((t - titleStart) / TITLE_TIME));
   word.position.set(0, (H / 2 - textY - (1 - reveal) * 14) * pxToWorld, 0);
   goldMat.opacity = reveal;
   const solid = reveal >= 1;
