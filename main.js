@@ -14,6 +14,7 @@ const GAP = 0.05;            // espace entre la pièce et "BOECE" (part de la ha
 
 const canvas = document.getElementById('coin');
 const title = document.getElementById('title');
+const shadow = document.getElementById('shadow');
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -38,7 +39,7 @@ scene.add(holder);
 let W = 1, H = 1, R0 = 1, R1 = 1, endY = 0, pxToWorld = 1;
 function layout() {
   W = window.innerWidth; H = window.innerHeight;
-  renderer.setSize(W, H, false);
+  renderer.setSize(W, H); // also sets the canvas CSS size, so it always matches
   camera.aspect = W / H;
   camera.updateProjectionMatrix();
   const halfH = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * CAM_Z;
@@ -101,6 +102,14 @@ function frame(now) {
   const cy = THREE.MathUtils.lerp(H / 2, endY, moveU);
 
   holder.position.set(0, (H / 2 - cy) * pxToWorld, 0);
+
+  // shadow follows the coin, slightly below it
+  const sh = r * 2.0;
+  const sw = sh * (0.3 + 0.7 * Math.abs(Math.cos(rot)));   // narrower when the coin is edge-on
+  shadow.style.width = `${sw}px`;
+  shadow.style.height = `${sh}px`;
+  shadow.style.transform = `translate(${W / 2 - sw / 2}px, ${cy - sh / 2 + r * 0.14}px)`;
+  shadow.style.opacity = '1';
   holder.scale.setScalar(r * pxToWorld);
 
   // gentle sway once settled, so the gold keeps catching the light
