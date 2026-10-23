@@ -20,13 +20,16 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true 
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.1;
+renderer.toneMappingExposure = 1.3;
 
 const scene = new THREE.Scene();
 scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
-const key = new THREE.DirectionalLight(0xfff3dc, 2.0);
+const key = new THREE.DirectionalLight(0xfff3dc, 2.6);
 key.position.set(-3, 3, 5);
 scene.add(key);
+const fill = new THREE.DirectionalLight(0xfff8ea, 1.0); // soft light from the front right
+fill.position.set(3, -1, 6);
+scene.add(fill);
 
 const CAM_Z = 10;
 const camera = new THREE.PerspectiveCamera(25, 1, 0.1, 100);

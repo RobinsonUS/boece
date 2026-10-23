@@ -34,7 +34,7 @@ body {
   left: 0;
   top: 0;
   border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(107, 74, 18, 0.24), rgba(107, 74, 18, 0));
+  background: radial-gradient(closest-side, rgba(107, 74, 18, 0.16), rgba(107, 74, 18, 0));
   pointer-events: none;
   opacity: 0;
 }
@@ -53,9 +53,15 @@ body {
   line-height: 1;
   letter-spacing: 0.14em;
   padding-left: 0.14em; /* keeps the spaced word optically centred */
-  color: var(--ink);
+  color: var(--ink); /* fallback */
+  /* brushed gold, kept soft so the word stays readable */
+  background-image: linear-gradient(180deg,
+    #7c5714 0%, #a77b25 22%, #d3a748 44%, #e7c46e 52%, #c4973a 62%, #93681c 82%, #74510f 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
   /* struck into the paper, like the letters on the coin */
-  text-shadow: 0 1px 0 rgba(255, 248, 222, 0.9), 0 -1px 0 rgba(70, 45, 5, 0.25);
+  filter: drop-shadow(0 1px 0 rgba(255, 248, 222, 0.85)) drop-shadow(0 -1px 0 rgba(70, 45, 5, 0.22));
   opacity: 0;
   transform: translateY(-50%);
 }
