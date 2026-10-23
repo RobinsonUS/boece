@@ -257,7 +257,7 @@ function frame(now) {
   shadow.style.opacity = '1';
 
   // darker glow centred on the coin
-  const hs = r * 3.4;
+  const hs = r * 2.9;
   halo.style.width = `${hs}px`;
   halo.style.height = `${hs}px`;
   halo.style.transform = `translate(${W / 2 - hs / 2}px, ${cy - hs / 2}px)`;

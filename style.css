@@ -36,13 +36,13 @@ body {
   left: 0;
   top: 0;
   border-radius: 50%;
-  /* the halo is 1.7x the coin's diameter: the coin's edge sits at 59% of its radius,
+  /* the halo is 1.45x the coin's diameter: the coin's edge sits at 69% of its radius,
      so the darkest ring starts right at the rim and fades out beyond it */
   background: radial-gradient(closest-side,
-    rgba(84, 62, 26, 0.42) 0%,
-    rgba(84, 62, 26, 0.42) 58%,
-    rgba(84, 62, 26, 0.26) 68%,
-    rgba(84, 62, 26, 0.10) 84%,
+    rgba(84, 62, 26, 0.30) 0%,
+    rgba(84, 62, 26, 0.30) 68%,
+    rgba(84, 62, 26, 0.18) 77%,
+    rgba(84, 62, 26, 0.07) 89%,
     rgba(84, 62, 26, 0) 100%);
   pointer-events: none;
   opacity: 0;
