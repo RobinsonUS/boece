@@ -261,7 +261,8 @@ function frame(now) {
   halo.style.width = `${hs}px`;
   halo.style.height = `${hs}px`;
   halo.style.transform = `translate(${W / 2 - hs / 2}px, ${cy - hs / 2}px)`;
-  halo.style.opacity = '1';
+  // grows with the spin and is fully there when the coin settles
+  halo.style.opacity = String(spinU * spinU * (3 - 2 * spinU));
 
   // 3. the word rises into place
   // only once the coin has fully settled: the coin and the word never touch

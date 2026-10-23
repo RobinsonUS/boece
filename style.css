@@ -29,7 +29,7 @@ body {
 }
 
 /* soft shadow under the coin (a CSS filter on the WebGL canvas breaks Safari) */
-/* darker glow behind the coin so its light rim stands out */
+/* dark beige glow behind the coin so its light rim stands out; fades in during the spin */
 #halo {
   position: fixed;
   z-index: 0;
@@ -39,11 +39,11 @@ body {
   /* the halo is 1.45x the coin's diameter: the coin's edge sits at 69% of its radius,
      so the darkest ring starts right at the rim and fades out beyond it */
   background: radial-gradient(closest-side,
-    rgba(84, 62, 26, 0.30) 0%,
-    rgba(84, 62, 26, 0.30) 68%,
-    rgba(84, 62, 26, 0.18) 77%,
-    rgba(84, 62, 26, 0.07) 89%,
-    rgba(84, 62, 26, 0) 100%);
+    rgba(170, 138, 86, 0.55) 0%,
+    rgba(170, 138, 86, 0.55) 68%,
+    rgba(170, 138, 86, 0.33) 77%,
+    rgba(170, 138, 86, 0.12) 89%,
+    rgba(170, 138, 86, 0) 100%);
   pointer-events: none;
   opacity: 0;
 }
