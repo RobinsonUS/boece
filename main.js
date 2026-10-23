@@ -7,12 +7,15 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 // ===== Réglages =====
 const SPIN_TURNS = 5;        // nombre de tours pendant la rotation rapide
-const SPIN_TIME = 2.8;       // durée de la rotation (s)
+const SPIN_TIME = 3.3;       // durée de la rotation (s)
 const PAUSE_TIME = 0.35;     // pause sur la face avant de monter (s)
 const MOVE_TIME = 1.2;       // durée de la montée (s)
 const START_SIZE = 0.62;     // diamètre de départ (part du plus petit côté de l'écran)
 const END_SCALE = 0.75;      // taille finale par rapport à la taille de départ
-const GAP = 0.05;            // espace entre la pièce et "BOECE" (part de la hauteur)
+const GAP = 0.08;            // espace entre la pièce et "BOECE" (part de la hauteur)
+const LIFT = 0.05;           // remonte l'ensemble pièce + titre (part de la hauteur)
+const TITLE_DELAY = 0.25;    // le titre arrive après la fin de la montée (s)
+const TITLE_TIME = 0.7;      // durée d'apparition du titre (s)
 const TEXT_HEIGHT = 0.11;    // hauteur des lettres (part de la largeur, plafonnée)
 const TEXT_SPACING = 0.16;   // espace entre les lettres (part de la hauteur des lettres)
 // ====================
@@ -86,7 +89,7 @@ function layout() {
   textPx = Math.min(W * TEXT_HEIGHT, 130, H * 0.14);
   const gap = H * GAP;
   const groupH = 2 * R1 + gap + textPx;
-  const top = (H - groupH) / 2;
+  const top = Math.max(H * 0.04, (H - groupH) / 2 - H * LIFT);
   endY = top + R1;
   textY = top + 2 * R1 + gap + textPx / 2;
   fitWord();
@@ -105,6 +108,7 @@ canvas.addEventListener('webglcontextrestored', layout);
 // ----- easing -----
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
 const easeOutCubic = (u) => 1 - Math.pow(1 - u, 3);
+const easeOutQuart = (u) => 1 - Math.pow(1 - u, 4);  // longer slow-down at the end
 const easeInOutCubic = (u) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
 
 // ----- the gold word, modelled in 3D -----
@@ -232,7 +236,7 @@ function frame(now) {
 
   // 1. fast spin that slows down and lands exactly on the front face, then stays still
   const spinU = clamp01(t / SPIN_TIME);
-  const rot = SPIN_TURNS * 2 * Math.PI * easeOutCubic(spinU);
+  const rot = SPIN_TURNS * 2 * Math.PI * easeOutQuart(spinU);
 
   // 2. move up and shrink, uncovering the word
   const moveU = easeInOutCubic(clamp01((t - SPIN_TIME - PAUSE_TIME) / MOVE_TIME));
@@ -252,7 +256,8 @@ function frame(now) {
   shadow.style.opacity = '1';
 
   // 3. the word rises into place
-  const reveal = clamp01((moveU - 0.3) / 0.7);
+  // only once the coin has fully settled: the coin and the word never touch
+  const reveal = easeOutCubic(clamp01((t - SPIN_TIME - PAUSE_TIME - MOVE_TIME - TITLE_DELAY) / TITLE_TIME));
   word.position.set(0, (H / 2 - textY - (1 - reveal) * 14) * pxToWorld, 0);
   goldMat.opacity = reveal;
   const solid = reveal >= 1;
