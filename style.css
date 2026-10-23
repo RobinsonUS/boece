@@ -1,0 +1,50 @@
+:root {
+  --paper: #efe0b0;
+  --paper-light: #f7edcd;
+  --paper-dark: #e0c98a;
+  --ink: #6b4a12;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background-color: var(--paper);
+  background-image: radial-gradient(ellipse at 50% 42%, var(--paper-light) 0%, var(--paper) 55%, var(--paper-dark) 100%);
+}
+
+/* the coin sits on top of the title, so the title is hidden until the coin moves up */
+#coin {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1;
+  filter: drop-shadow(0 18px 22px rgba(107, 74, 18, 0.28));
+}
+
+#title {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 50%;
+  z-index: 0;
+  margin: 0;
+  text-align: center;
+  font-family: "Cinzel", "Trajan Pro", Georgia, serif;
+  font-weight: 700;
+  font-size: clamp(3.2rem, 13vw, 9rem);
+  line-height: 1;
+  letter-spacing: 0.14em;
+  padding-left: 0.14em; /* keeps the spaced word optically centred */
+  color: var(--ink);
+  /* struck into the paper, like the letters on the coin */
+  text-shadow: 0 1px 0 rgba(255, 248, 222, 0.9), 0 -1px 0 rgba(70, 45, 5, 0.25);
+  opacity: 0;
+  transform: translateY(-50%);
+}
