@@ -249,20 +249,24 @@ function frame(now) {
   holder.rotation.set(0, spinU < 1 ? rot : 0, 0);
 
   // shadow follows the coin
-  const sh = r * 2.0;
-  const sw = sh * (0.3 + 0.7 * Math.abs(Math.cos(rot)));
+  // shadow and halo: invisible at first, fully there when the coin settles,
+  // and they follow the coin's shape (round from the front, thin from the side)
+  const fadeIn = spinU * spinU * (3 - 2 * spinU);
+  const visW = 2 * r * Math.abs(Math.cos(rot)) + 0.14 * r;   // width of the coin as seen on screen
+  const visH = 2 * r;
+
+  const sw = visW * 1.0, sh = visH * 1.0;
   shadow.style.width = `${sw}px`;
   shadow.style.height = `${sh}px`;
   shadow.style.transform = `translate(${W / 2 - sw / 2}px, ${cy - sh / 2 + r * 0.14}px)`;
-  shadow.style.opacity = '1';
+  shadow.style.opacity = String(fadeIn);
 
-  // darker glow centred on the coin
-  const hs = r * 2.9;
-  halo.style.width = `${hs}px`;
-  halo.style.height = `${hs}px`;
-  halo.style.transform = `translate(${W / 2 - hs / 2}px, ${cy - hs / 2}px)`;
-  // grows with the spin and is fully there when the coin settles
-  halo.style.opacity = String(spinU * spinU * (3 - 2 * spinU));
+  const ring = 0.9 * r;                                       // how far the halo reaches past the rim
+  const hw = visW + ring, hh = visH + ring;
+  halo.style.width = `${hw}px`;
+  halo.style.height = `${hh}px`;
+  halo.style.transform = `translate(${W / 2 - hw / 2}px, ${cy - hh / 2}px)`;
+  halo.style.opacity = String(fadeIn);
 
   // 3. the word rises into place
   // only once the coin has fully settled: the coin and the word never touch
