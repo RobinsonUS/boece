@@ -1,3 +1,10 @@
+@font-face {
+  font-family: "Cinzel Local";
+  src: url("fonts/cinzel-latin-400-normal.woff") format("woff");
+  font-weight: 400;
+  font-display: block;
+}
+
 :root {
   --paper: #ece4cc;
   --paper-light: #f7f2e3;
@@ -26,6 +33,34 @@ body {
   height: 100%;
   display: block;
   z-index: 1;
+  opacity: 0;  /* main.js fades it in after the opening sentence */
+}
+
+/* opening sentence: fades in, stays, fades out. Always 5 s, while everything loads */
+#intro {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 0 8vw;
+  text-align: center;
+  font-family: "Cinzel Local", Georgia, serif;
+  font-weight: 400;
+  font-size: clamp(1.05rem, 2.4vw, 1.7rem);
+  line-height: 1.6;
+  letter-spacing: 0.08em;
+  color: #6b5326;
+  pointer-events: none;
+  opacity: 0;
+}
+#intro.play { animation: intro 5s ease-in-out forwards; }
+@keyframes intro {
+  0%   { opacity: 0; }
+  26%  { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 /* soft shadow under the coin (a CSS filter on the WebGL canvas breaks Safari) */

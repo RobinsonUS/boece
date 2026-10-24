@@ -6,6 +6,8 @@ import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 // ===== Réglages =====
+const INTRO_TIME = 5;        // durée de la phrase d'ouverture (s), doit être égale à celle de style.css
+const FADE_IN = 0.6;         // fondu d'apparition de la pièce (s)
 const SPIN_TURNS = 4;        // nombre de tours pendant la rotation rapide
 const SPIN_TIME = 3.3;       // durée de la rotation (s)
 const PAUSE_TIME = 0.35;     // pause sur la face avant de monter (s)
@@ -201,11 +203,16 @@ function loaded() {
     recomposite();
     setTimeout(recomposite, 400);
   });
-  if (document.hidden) {
-    document.addEventListener('visibilitychange', function once() {
-      if (!document.hidden) { document.removeEventListener('visibilitychange', once); go(); }
-    });
-  } else go();
+  // wait for the opening sentence (always exactly INTRO_TIME), and for the tab to be visible
+  const startedAt = window.__introStart ?? 0;
+  const wait = Math.max(0, startedAt + INTRO_TIME * 1000 - performance.now());
+  setTimeout(() => {
+    if (document.hidden) {
+      document.addEventListener('visibilitychange', function once() {
+        if (!document.hidden) { document.removeEventListener('visibilitychange', once); go(); }
+      });
+    } else go();
+  }, wait);
 }
 
 new GLTFLoader().load(`${MODEL}?v=${V}`, (gltf) => {
@@ -234,6 +241,9 @@ function frame(now) {
   // time advances at most 1/30 s per frame: a slow frame slows the intro down instead of skipping it
   t += Math.min((now - last) / 1000, 1 / 30);
   last = now;
+
+  // 0. the coin fades in
+  canvas.style.opacity = String(clamp01(t / FADE_IN));
 
   // 1. fast spin that slows down and lands exactly on the front face, then stays still
   const spinU = clamp01(t / SPIN_TIME);
