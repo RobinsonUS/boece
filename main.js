@@ -6,7 +6,8 @@ import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 // ===== Réglages =====
-const INTRO_TIME = 5;        // durée de la phrase d'ouverture (s), doit être égale à celle de style.css
+const INTRO_GAP = 0.6;       // temps vide entre la disparition de la phrase et la pièce (s)
+                             // (la phrase elle-même dure 4,4 s, réglée dans style.css)
 const FADE_IN = 0.6;         // fondu d'apparition de la pièce (s)
 const SPIN_TURNS = 4;        // nombre de tours pendant la rotation rapide
 const SPIN_TIME = 3.3;       // durée de la rotation (s)
@@ -15,7 +16,7 @@ const MOVE_TIME = 1.2;       // durée de la montée (s)
 const START_SIZE = 0.62;     // diamètre de départ (part du plus petit côté de l'écran)
 const END_SCALE = 0.75;      // taille finale par rapport à la taille de départ
 const GAP = 0.08;            // espace entre la pièce et "BOECE" (part de la hauteur)
-const LIFT = 0.05;           // remonte l'ensemble pièce + titre (part de la hauteur)
+const LIFT = 0;              // remonte l'ensemble pièce + titre (part de la hauteur), 0 = centré
 const TITLE_MARGIN = 0.05;   // le titre apparaît dès que la pièce est assez haute (part de l'espace GAP)
 const TITLE_TIME = 0.7;      // durée d'apparition du titre (s)
 const TEXT_HEIGHT = 0.11;    // hauteur des lettres (part de la largeur, plafonnée)
@@ -203,16 +204,20 @@ function loaded() {
     recomposite();
     setTimeout(recomposite, 400);
   });
-  // wait for the opening sentence (always exactly INTRO_TIME), and for the tab to be visible
-  const startedAt = window.__introStart ?? 0;
-  const wait = Math.max(0, startedAt + INTRO_TIME * 1000 - performance.now());
-  setTimeout(() => {
-    if (document.hidden) {
-      document.addEventListener('visibilitychange', function once() {
-        if (!document.hidden) { document.removeEventListener('visibilitychange', once); go(); }
-      });
-    } else go();
-  }, wait);
+  // wait until the opening sentence has really finished fading out (whatever the browser's timing),
+  // plus a short empty pause, and for the tab to be visible
+  const startAfterIntro = () => {
+    const wait = Math.max(0, window.__introEnd + INTRO_GAP * 1000 - performance.now());
+    setTimeout(() => {
+      if (document.hidden) {
+        document.addEventListener('visibilitychange', function once() {
+          if (!document.hidden) { document.removeEventListener('visibilitychange', once); go(); }
+        });
+      } else go();
+    }, wait);
+  };
+  if (window.__introEnd) startAfterIntro();
+  else window.addEventListener('introend', startAfterIntro, { once: true });
 }
 
 new GLTFLoader().load(`${MODEL}?v=${V}`, (gltf) => {

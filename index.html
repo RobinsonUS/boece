@@ -25,7 +25,7 @@
 <link rel="preload" href="fonts/cinzel-latin-400-normal.woff" as="font" type="font/woff" crossorigin>
 <meta name="theme-color" content="#ece4cc">
 <!-- VERSION: bump on every update so browsers reload style.css, main.js and the 3D models -->
-<link rel="stylesheet" href="style.css?v=18">
+<link rel="stylesheet" href="style.css?v=19">
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -37,13 +37,25 @@
   <p id="intro">He was here long before you arrived.<br>He will be here long after you leave.</p>
   <script>
     // start the opening sentence right away, before the 3D code has even loaded
-    document.getElementById('intro').classList.add('play');
-    window.__introStart = performance.now();
+    (function () {
+      var el = document.getElementById('intro');
+      var done = false;
+      function end() {
+        if (done) return;
+        done = true;
+        window.__introEnd = performance.now();
+        window.dispatchEvent(new Event('introend'));
+      }
+      el.addEventListener('animationend', end);
+      el.classList.add('play');
+      // safety net if the browser never reports the end of the animation
+      setTimeout(end, 8000);
+    })();
   </script>
   <div id="halo" aria-hidden="true"></div>
   <div id="shadow" aria-hidden="true"></div>
   <h1 id="title">BOECE</h1>
   <canvas id="coin" aria-label="The BOECE coin and the word BOECE in gold"></canvas>
-  <script type="module" src="main.js?v=18"></script>
+  <script type="module" src="main.js?v=19"></script>
 </body>
 </html>

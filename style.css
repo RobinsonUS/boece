@@ -36,7 +36,7 @@ body {
   opacity: 0;  /* main.js fades it in after the opening sentence */
 }
 
-/* opening sentence: fades in, stays, fades out. Always 5 s, while everything loads */
+/* opening sentence: fades in, stays, fades out (4.4 s), then main.js waits 0.6 s more: 5 s in all */
 #intro {
   position: fixed;
   inset: 0;
@@ -55,12 +55,13 @@ body {
   pointer-events: none;
   opacity: 0;
 }
-#intro.play { animation: intro 5s ease-in-out forwards; }
+#intro.play { animation: intro 4.4s linear forwards; }
+/* 0.8 s fade in, 2.6 s fully visible, 1.0 s fade out */
 @keyframes intro {
-  0%   { opacity: 0; }
-  26%  { opacity: 1; }
-  70%  { opacity: 1; }
-  100% { opacity: 0; }
+  0%      { opacity: 0; }
+  18.18%  { opacity: 1; }
+  77.27%  { opacity: 1; }
+  100%    { opacity: 0; }
 }
 
 /* soft shadow under the coin (a CSS filter on the WebGL canvas breaks Safari) */
