@@ -34,6 +34,7 @@ body {
   display: block;
   z-index: 1;
   opacity: 0;  /* main.js fades it in after the opening sentence */
+  will-change: opacity;
 }
 
 /* opening sentence: fades in, stays, fades out (4.4 s), then main.js waits 0.6 s more: 5 s in all */
@@ -71,7 +72,11 @@ body {
   z-index: 0;
   left: 0;
   top: 0;
+  width: 200px;
+  height: 200px;
   border-radius: 50%;
+  transform-origin: 50% 50%;
+  will-change: transform, opacity;
   /* the halo is 1.45x the coin's diameter: the coin's edge sits at 69% of its radius,
      so the darkest ring starts right at the rim and fades out beyond it */
   background: radial-gradient(closest-side,
@@ -89,7 +94,11 @@ body {
   z-index: 0;
   left: 0;
   top: 0;
+  width: 200px;
+  height: 200px;
   border-radius: 50%;
+  transform-origin: 50% 50%;
+  will-change: transform, opacity;
   background: radial-gradient(closest-side, rgba(107, 74, 18, 0.16), rgba(107, 74, 18, 0));
   pointer-events: none;
   opacity: 0;

@@ -14,6 +14,7 @@ const SPIN_TIME = 3.3;       // durée de la rotation (s)
 const PAUSE_TIME = 0.35;     // pause sur la face avant de monter (s)
 const MOVE_TIME = 1.2;       // durée de la montée (s)
 const START_SIZE = 0.62;     // diamètre de départ (part du plus petit côté de l'écran)
+const START_SIZE_PHONE = 0.8; // pareil, sur téléphone
 const END_SCALE = 0.75;      // taille finale par rapport à la taille de départ
 const GAP = 0.08;            // espace entre la pièce et "BOECE" (part de la hauteur)
 const LIFT = 0;              // remonte l'ensemble pièce + titre (part de la hauteur), 0 = centré
@@ -29,7 +30,7 @@ const V = new URL(import.meta.url).searchParams.get('v') || '0';
 // phones and small tablets get the light model and a lower resolution
 const lowEnd = window.matchMedia('(pointer: coarse)').matches || Math.min(screen.width, screen.height) < 600;
 const MODEL = lowEnd ? 'boece_coin_lite.glb' : 'boece_coin.glb';
-const MAX_DPR = lowEnd ? 1.5 : 2;
+const MAX_DPR = lowEnd ? 3 : 2;
 
 const canvas = document.getElementById('coin');
 const shadow = document.getElementById('shadow');
@@ -88,7 +89,7 @@ function layout() {
   const halfH = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * CAM_Z;
   pxToWorld = halfH / (H / 2);
 
-  R0 = (Math.min(W, H) * START_SIZE) / 2;
+  R0 = (Math.min(W, H) * (W < 600 ? START_SIZE_PHONE : START_SIZE)) / 2;
   R1 = R0 * END_SCALE;
   textPx = Math.min(W * TEXT_HEIGHT, 130, H * 0.14);
   const gap = H * GAP;
@@ -102,7 +103,7 @@ function layout() {
 function sizeIsWrong() {
   return window.innerWidth !== W || window.innerHeight !== H ||
     gl.drawingBufferWidth !== canvas.width || gl.drawingBufferHeight !== canvas.height ||
-    Math.abs(canvas.clientWidth - W) > 1 || Math.abs(canvas.clientHeight - H) > 1;
+    false;
 }
 
 window.addEventListener('resize', layout);
@@ -194,6 +195,13 @@ function loaded() {
   if (++ready < 2) return;
   layout();
   renderer.compile(scene, camera);
+  // draw a few poses off-screen (the canvas is still invisible) so textures, shaders and
+  // buffers are all uploaded before the animation starts
+  for (const a of [0, 0.8, 1.6, 2.4]) {
+    holder.rotation.set(0, a, 0);
+    renderer.render(scene, camera);
+  }
+  holder.rotation.set(0, 0, 0);
   renderer.render(scene, camera); // uploads textures before the clock starts
   const go = () => requestAnimationFrame((now) => {
     // second safety net: force Safari to rebuild the canvas surface once, at the real size
@@ -244,7 +252,7 @@ function frame(now) {
   if (sizeIsWrong()) layout();
 
   // time advances at most 1/30 s per frame: a slow frame slows the intro down instead of skipping it
-  t += Math.min((now - last) / 1000, 1 / 30);
+  t += Math.min((now - last) / 1000, 0.1);
   last = now;
 
   // 0. the coin fades in
@@ -270,18 +278,15 @@ function frame(now) {
   const visW = 2 * r * Math.abs(Math.cos(rot)) + 0.14 * r;   // width of the coin as seen on screen
   const visH = 2 * r;
 
-  const sw = visW * 1.0, sh = visH * 1.0;
-  shadow.style.width = `${sw}px`;
-  shadow.style.height = `${sh}px`;
-  shadow.style.transform = `translate(${W / 2 - sw / 2}px, ${cy - sh / 2 + r * 0.14}px)`;
-  shadow.style.opacity = String(fadeIn);
+  // fixed 200x200 px elements, moved and stretched with transform only (no repaint, no layout)
+  const sw = visW, sh = visH;
+  shadow.style.transform = `translate3d(${W / 2 - 100}px, ${cy - 100 + r * 0.14}px, 0) scale(${sw / 200}, ${sh / 200})`;
+  shadow.style.opacity = fadeIn.toFixed(3);
 
   const ring = 0.9 * r;                                       // how far the halo reaches past the rim
   const hw = visW + ring, hh = visH + ring;
-  halo.style.width = `${hw}px`;
-  halo.style.height = `${hh}px`;
-  halo.style.transform = `translate(${W / 2 - hw / 2}px, ${cy - hh / 2}px)`;
-  halo.style.opacity = String(fadeIn);
+  halo.style.transform = `translate3d(${W / 2 - 100}px, ${cy - 100}px, 0) scale(${hw / 200}, ${hh / 200})`;
+  halo.style.opacity = fadeIn.toFixed(3);
 
   // 3. the word rises into place
   // only once the coin has fully settled: the coin and the word never touch
@@ -292,9 +297,6 @@ function frame(now) {
   const reveal = titleStart === null ? 0 : easeOutCubic(clamp01((t - titleStart) / TITLE_TIME));
   word.position.set(0, (H / 2 - textY - (1 - reveal) * 14) * pxToWorld, 0);
   goldMat.opacity = reveal;
-  const solid = reveal >= 1;
-  if (goldMat.transparent === solid) { goldMat.transparent = !solid; goldMat.needsUpdate = true; }
-  word.visible = reveal > 0;
 
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
