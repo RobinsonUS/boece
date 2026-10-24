@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
-<title>BOECE</title>
-<meta name="description" content="He has been watching since 524. BOECE, the coin of Boethius.">
+<title>BOECE · The coin of Boethius</title>
+<meta name="description" content="He has been watching since 524. BOECE is a memecoin on Solana, struck with the face of the philosopher Boethius.">
+<meta name="theme-color" content="#efe7d2">
+<link rel="icon" href="img/favicon.png?v=21" type="image/png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png?v=21">
+
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="BOECE">
 <meta property="og:title" content="BOECE">
@@ -22,40 +23,168 @@
 <meta name="twitter:title" content="BOECE">
 <meta name="twitter:description" content="He has been watching since 524.">
 <meta name="twitter:image" content="https://robinsonus.github.io/boece/og.png">
-<link rel="preload" href="fonts/cinzel-latin-400-normal.woff" as="font" type="font/woff" crossorigin>
-<meta name="theme-color" content="#ece4cc">
-<!-- VERSION: bump on every update so browsers reload style.css, main.js and the 3D models -->
-<link rel="stylesheet" href="style.css?v=20">
+
+<!-- VERSION: bump ?v= everywhere on every update so browsers reload the files -->
+<link rel="preload" href="fonts/cinzel-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/eb-garamond-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" as="image" href="img/coin-900.webp?v=21" imagesrcset="img/coin-600.webp?v=21 600w, img/coin-900.webp?v=21 900w, img/coin-1200.webp?v=21 1200w" imagesizes="(max-width: 600px) 80vw, 480px" fetchpriority="high">
+<link rel="stylesheet" href="style.css?v=21">
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
 } }
 </script>
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" crossorigin>
 </head>
 <body>
-  <p id="intro">He was here long before you arrived.<br>He will be here long after you leave.</p>
-  <script>
-    // start the opening sentence right away, before the 3D code has even loaded
-    (function () {
-      var el = document.getElementById('intro');
-      var done = false;
-      function end() {
-        if (done) return;
-        done = true;
-        window.__introEnd = performance.now();
-        window.dispatchEvent(new Event('introend'));
-      }
-      el.addEventListener('animationend', end);
-      el.classList.add('play');
-      // safety net if the browser never reports the end of the animation
-      setTimeout(end, 8000);
-    })();
-  </script>
-  <div id="halo" aria-hidden="true"></div>
-  <div id="shadow" aria-hidden="true"></div>
-  <h1 id="title">BOECE</h1>
-  <canvas id="coin" aria-label="The BOECE coin and the word BOECE in gold"></canvas>
-  <script type="module" src="main.js?v=20"></script>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="fleuron" viewBox="0 0 24 24">
+    <circle cx="12" cy="6.2" r="4.2"/><circle cx="12" cy="17.8" r="4.2"/>
+    <circle cx="6.2" cy="12" r="4.2"/><circle cx="17.8" cy="12" r="4.2"/>
+    <circle cx="12" cy="12" r="2.4" class="fleuron-heart"/>
+  </symbol>
+</svg>
+
+<header class="bar">
+  <a class="bar-brand" href="#top" aria-label="BOECE, back to top">Boece</a>
+  <nav class="bar-nav" aria-label="Sections">
+    <a href="#story">Story</a>
+    <a href="#coin-facts">The coin</a>
+    <a href="#works">Works</a>
+    <a href="#buy" class="bar-cta">Get $BOECE</a>
+  </nav>
+</header>
+
+<main id="top">
+
+  <section class="hero" aria-label="BOECE">
+    <div class="coin-stage" id="coin-stage">
+      <div class="coin-halo" id="coin-halo" aria-hidden="true"></div>
+      <img class="coin-poster" id="coin-poster"
+           src="img/coin-900.webp?v=21"
+           srcset="img/coin-600.webp?v=21 600w, img/coin-900.webp?v=21 900w, img/coin-1200.webp?v=21 1200w"
+           sizes="(max-width: 600px) 80vw, 480px"
+           width="800" height="800" fetchpriority="high"
+           alt="A gold coin struck with the engraved face of Boethius">
+      <canvas class="coin-canvas" id="coin" aria-label="The BOECE coin. Drag to spin it, tap to flip it."></canvas>
+    </div>
+    <h1 class="wordmark">
+      <img src="img/title-800.webp?v=21"
+           srcset="img/title-800.webp?v=21 800w, img/title-1600.webp?v=21 1600w"
+           sizes="(max-width: 600px) 86vw, 560px"
+           width="800" height="164" fetchpriority="high" alt="BOECE">
+    </h1>
+  </section>
+
+  <section class="section story" id="story" aria-labelledby="story-title">
+    <div class="story-grid">
+      <figure class="plate">
+        <img src="img/engraving-560.webp?v=21"
+             srcset="img/engraving-560.webp?v=21 560w, img/engraving-886.webp?v=21 886w"
+             sizes="(max-width: 860px) 80vw, 400px"
+             width="560" height="696" loading="lazy" decoding="async"
+             alt="17th-century engraving of Boethius: long beard, fur collar, and a haircut curled on one side and slicked back on the other">
+        <figcaption>Boethius, engraved by De Larmessin in the 17th century.</figcaption>
+      </figure>
+      <div class="prose">
+        <h2 id="story-title"><svg class="fl" aria-hidden="true"><use href="#fleuron"/></svg>The man on the coin</h2>
+        <p>Anicius Manlius Severinus Boethius. Roman senator, consul in 510, adviser to Theodoric, the Ostrogothic king of Italy.</p>
+        <p>In 523 the king turned on him. Accused of treason, he was thrown in prison to wait for his execution. There, with nothing left, he wrote <cite>The Consolation of Philosophy</cite>.</p>
+        <blockquote>
+          <p lang="la">Rotam volubili orbe versamus, infima summis, summa infimis mutare gaudemus.</p>
+          <footer>We turn the wheel in its spinning circle, and love to bring the lowest to the top and the top to the bottom. <span>Fortune, in the <cite>Consolation</cite>, book II</span></footer>
+        </blockquote>
+        <p>He was executed in 524. The book was copied, translated and read for a thousand years. Chaucer put it into English and called it <em>Boece</em>. That is the name on the coin.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section coin-facts" id="coin-facts" aria-labelledby="facts-title">
+    <div class="wrap">
+      <h2 id="facts-title"><svg class="fl" aria-hidden="true"><use href="#fleuron"/></svg>The coin</h2>
+      <p class="lead">A memecoin with a face you will not forget. Nothing more, nothing less.</p>
+      <dl class="facts">
+        <div><dt>Ticker</dt><dd>$BOECE</dd></div>
+        <div><dt>Network</dt><dd>Solana</dd></div>
+        <div><dt>Launch</dt><dd>Fair launch on pump.fun</dd></div>
+        <div><dt>Supply</dt><dd>1,000,000,000</dd></div>
+        <div><dt>Presale</dt><dd>None</dd></div>
+        <div><dt>Contract</dt><dd class="facts-ca">Not yet minted</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <section class="section works" id="works" aria-labelledby="works-title">
+    <div class="wrap">
+      <h2 id="works-title"><svg class="fl" aria-hidden="true"><use href="#fleuron"/></svg>What we are building</h2>
+      <p class="lead">Made by us, free for everyone. Each one is unsealed when the community reaches a milestone.</p>
+      <ul class="works-list">
+        <li>
+          <h3>The Bible of Boece</h3>
+          <p>His whole story, written and illustrated. Free to read.</p>
+          <span class="seal">Sealed</span>
+        </li>
+        <li>
+          <h3>The Simulator</h3>
+          <p>Trade real memecoin prices with pretend money. Lose nothing, learn a lot.</p>
+          <span class="seal">Sealed</span>
+        </li>
+        <li>
+          <h3>The Game</h3>
+          <p>A browser game starring Boece. No wallet needed.</p>
+          <span class="seal">Sealed</span>
+        </li>
+        <li>
+          <h3>BoeceGPT</h3>
+          <p>Ask him anything. He has had fifteen centuries to think about it.</p>
+          <span class="seal">Sealed</span>
+        </li>
+      </ul>
+      <p class="note">Milestones unlock things we build. They are not price targets or promises of value.</p>
+    </div>
+  </section>
+
+  <section class="section buy" id="buy" aria-labelledby="buy-title">
+    <div class="wrap">
+      <h2 id="buy-title"><svg class="fl" aria-hidden="true"><use href="#fleuron"/></svg>How to get $BOECE</h2>
+      <ol class="steps">
+        <li><h3>Get Phantom</h3><p>Install the Phantom wallet on your phone or in your browser.</p></li>
+        <li><h3>Add SOL</h3><p>Buy SOL inside Phantom, or send some from an exchange.</p></li>
+        <li><h3>Open pump.fun</h3><p>Connect Phantom and paste the contract address below. Check it twice.</p></li>
+        <li><h3>Swap</h3><p>Choose how much SOL to swap for $BOECE. Then go back to staring.</p></li>
+      </ol>
+
+      <!-- AU LANCEMENT : remplacer "Not yet minted" par l'adresse, retirer "disabled" du bouton Copy,
+           et mettre les vrais liens dans les deux boutons (retirer aria-disabled et la classe is-off). -->
+      <div class="ca-box">
+        <span class="ca-label">Contract address</span>
+        <code id="ca" class="ca-value">Not yet minted</code>
+        <button id="ca-copy" class="btn btn-quiet" type="button" disabled>Copy</button>
+      </div>
+      <div class="buy-links">
+        <a class="btn btn-gold is-off" aria-disabled="true">pump.fun <small>at launch</small></a>
+        <a class="btn btn-line is-off" aria-disabled="true">DEX Screener <small>at launch</small></a>
+      </div>
+
+      <p class="safety">We will never message you first, and never ask for your seed phrase. The only real address is the one on this page and on <a href="https://x.com/boece_coin" target="_blank" rel="noopener">@boece_coin</a>.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <svg class="foot-fl" aria-hidden="true"><use href="#fleuron"/></svg>
+  <nav class="foot-social" aria-label="BOECE on social media">
+    <a href="https://x.com/boece_coin" target="_blank" rel="noopener">X</a>
+    <a href="https://www.tiktok.com/@boece_coin" target="_blank" rel="noopener">TikTok</a>
+    <a href="https://www.instagram.com/boece_coin" target="_blank" rel="noopener">Instagram</a>
+  </nav>
+  <p class="disclaimer">$BOECE is a memecoin. It has no intrinsic value and no expectation of financial return. Nothing on this site is financial advice. Crypto is volatile: only use money you can afford to lose.</p>
+  <p class="credits">Engraving of Boethius by De Larmessin, 17th century, public domain. © 2026 BOECE.</p>
+</footer>
+
+<script type="module" src="main.js?v=21"></script>
 </body>
 </html>

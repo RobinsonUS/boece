@@ -1,303 +1,247 @@
+// BOECE — the 3D coin of the hero.
+// The page never waits for this file: a still image of the coin is shown first,
+// and the 3D coin silently takes its place once it is ready.
+
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { TTFLoader } from 'three/addons/loaders/TTFLoader.js';
-import { Font } from 'three/addons/loaders/FontLoader.js';
-import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 // ===== Réglages =====
-const INTRO_GAP = 0.6;       // temps vide entre la disparition de la phrase et la pièce (s)
-                             // (la phrase elle-même dure 4,4 s, réglée dans style.css)
-const FADE_IN = 0.6;         // fondu d'apparition de la pièce (s)
-const SPIN_TURNS = 4;        // nombre de tours pendant la rotation rapide
-const SPIN_TIME = 3.3;       // durée de la rotation (s)
-const PAUSE_TIME = 0.35;     // pause sur la face avant de monter (s)
-const MOVE_TIME = 1.2;       // durée de la montée (s)
-const START_SIZE = 0.62;     // diamètre de départ (part du plus petit côté de l'écran)
-const START_SIZE_PHONE = 0.8; // pareil, sur téléphone
-const END_SCALE = 0.75;      // taille finale par rapport à la taille de départ
-const GAP = 0.08;            // espace entre la pièce et "BOECE" (part de la hauteur)
-const LIFT = 0;              // remonte l'ensemble pièce + titre (part de la hauteur), 0 = centré
-const TITLE_MARGIN = 0.05;   // le titre apparaît dès que la pièce est assez haute (part de l'espace GAP)
-const TITLE_TIME = 0.7;      // durée d'apparition du titre (s)
-const TEXT_HEIGHT = 0.11;    // hauteur des lettres (part de la largeur, plafonnée)
-const TEXT_SPACING = 0.16;   // espace entre les lettres (part de la hauteur des lettres)
+const SPIN_TURNS = 4;        // tours de la rotation d'arrivée
+const SPIN_TIME = 2.6;       // durée de la rotation d'arrivée (s)
+const DRAG_SPEED = 0.012;    // sensibilité quand on fait tourner la pièce à la main
+const FRICTION = 2.2;        // freinage après un lancer
 // ====================
 
-// same version number as in index.html, so the models are never served from an old cache
 const V = new URL(import.meta.url).searchParams.get('v') || '0';
+const POSTER_MODE = new URLSearchParams(location.search).has('poster'); // used once to make img/coin.webp
 
-// phones and small tablets get the light model and a lower resolution
-const lowEnd = window.matchMedia('(pointer: coarse)').matches || Math.min(screen.width, screen.height) < 600;
-const MODEL = lowEnd ? 'boece_coin_lite.glb' : 'boece_coin.glb';
-const MAX_DPR = lowEnd ? 3 : 2;
-
+const stage = document.getElementById('coin-stage');
 const canvas = document.getElementById('coin');
-const shadow = document.getElementById('shadow');
-const halo = document.getElementById('halo');
+const poster = document.getElementById('coin-poster');
+const halo = document.getElementById('coin-halo');
+const ca = document.getElementById('ca');
 
-// Give the canvas its final size BEFORE the 3D context exists.
-// Safari keeps the wrong display scale when a WebGL canvas is resized right after
-// creation (default 300x150), which drew everything zoomed into the top-right corner.
-{
-  const r0 = Math.min(window.devicePixelRatio || 1, MAX_DPR);
-  canvas.style.width = `${window.innerWidth}px`;
-  canvas.style.height = `${window.innerHeight}px`;
-  canvas.width = Math.floor(window.innerWidth * r0);
-  canvas.height = Math.floor(window.innerHeight * r0);
+// ---------- contract address copy (works even if WebGL is unavailable) ----------
+const copyBtn = document.getElementById('ca-copy');
+if (copyBtn && ca) {
+  copyBtn.addEventListener('click', async () => {
+    const text = ca.textContent.trim();
+    try {
+      await navigator.clipboard.writeText(text);
+      copyBtn.textContent = 'Copied';
+    } catch {
+      const range = document.createRange();
+      range.selectNodeContents(ca);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      copyBtn.textContent = 'Selected';
+    }
+    setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1600);
+  });
 }
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-const gl = renderer.getContext();
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.3;
 
-const scene = new THREE.Scene();
-scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
-const key = new THREE.DirectionalLight(0xfff3dc, 2.6);
-key.position.set(-3, 3, 5);
-scene.add(key);
-const fill = new THREE.DirectionalLight(0xfff8ea, 1.0);
-fill.position.set(3, -1, 6);
-scene.add(fill);
+// ---------- 3D ----------
+function webglAvailable() {
+  try {
+    const c = document.createElement('canvas');
+    return !!(window.WebGLRenderingContext && (c.getContext('webgl2') || c.getContext('webgl')));
+  } catch { return false; }
+}
 
-const CAM_Z = 10;
-const camera = new THREE.PerspectiveCamera(25, 1, 0.1, 100);
-camera.position.set(0, 0, CAM_Z);
+if (stage && canvas && webglAvailable()) start();
 
-const holder = new THREE.Group();   // the coin
-const word = new THREE.Group();     // the gold word
-scene.add(holder, word);
+function start() {
+  const MAX_DPR = 2.5;
 
-// ----- size: always match the real screen and the real drawing buffer -----
-let W = 0, H = 0, dpr = 1, R0 = 1, R1 = 1, endY = 0, textY = 0, textPx = 0, pxToWorld = 1;
+  // size the canvas BEFORE creating the context (Safari keeps a wrong scale otherwise)
+  let size = 0, dpr = 1;
+  function measure() {
+    size = Math.round(stage.getBoundingClientRect().width);
+    dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
+  }
+  measure();
+  canvas.width = Math.round(size * dpr);
+  canvas.height = Math.round(size * dpr);
 
-function layout() {
-  W = window.innerWidth; H = window.innerHeight;
-  dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
-  renderer.setPixelRatio(dpr);
-  renderer.setSize(W, H);
-  // some browsers (Safari) silently give a smaller drawing buffer than asked;
-  // if so, use the real one, otherwise the image is drawn zoomed into a corner
-  if (gl.drawingBufferWidth !== canvas.width || gl.drawingBufferHeight !== canvas.height) {
-    dpr = Math.min(gl.drawingBufferWidth / W, gl.drawingBufferHeight / H);
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+  } catch { return; } // the still image simply stays
+  const gl = renderer.getContext();
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.3;
+  renderer.setClearColor(0x000000, 0);
+
+  const scene = new THREE.Scene();
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  pmrem.dispose();
+  const key = new THREE.DirectionalLight(0xfff3dc, 2.6);
+  key.position.set(-3, 3, 5);
+  const fill = new THREE.DirectionalLight(0xfff8ea, 1.0);
+  fill.position.set(3, -1, 6);
+  scene.add(key, fill);
+
+  const CAM_Z = 10, FOV = 25;
+  const camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 100);
+  camera.position.set(0, 0, CAM_Z);
+  const halfH = Math.tan(THREE.MathUtils.degToRad(FOV / 2)) * CAM_Z;
+
+  const holder = new THREE.Group();
+  holder.scale.setScalar(halfH * 0.97); // coin fills the stage, with a hair of margin
+  scene.add(holder);
+
+  function resize() {
+    measure();
     renderer.setPixelRatio(dpr);
-    renderer.setSize(W, H);
+    renderer.setSize(size, size, false);
+    // some browsers give a smaller drawing buffer than asked: follow the real one
+    if (gl.drawingBufferWidth !== canvas.width) {
+      dpr = gl.drawingBufferWidth / size;
+      renderer.setPixelRatio(dpr);
+      renderer.setSize(size, size, false);
+    }
+    requestRender();
   }
-  camera.aspect = W / H;
-  camera.updateProjectionMatrix();
-  const halfH = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * CAM_Z;
-  pxToWorld = halfH / (H / 2);
 
-  R0 = (Math.min(W, H) * (W < 600 ? START_SIZE_PHONE : START_SIZE)) / 2;
-  R1 = R0 * END_SCALE;
-  textPx = Math.min(W * TEXT_HEIGHT, 130, H * 0.14);
-  const gap = H * GAP;
-  const groupH = 2 * R1 + gap + textPx;
-  const top = Math.max(H * 0.04, (H - groupH) / 2 - H * LIFT);
-  endY = top + R1;
-  textY = top + 2 * R1 + gap + textPx / 2;
-  fitWord();
-}
-
-function sizeIsWrong() {
-  return window.innerWidth !== W || window.innerHeight !== H ||
-    gl.drawingBufferWidth !== canvas.width || gl.drawingBufferHeight !== canvas.height ||
-    false;
-}
-
-window.addEventListener('resize', layout);
-window.visualViewport?.addEventListener('resize', layout);
-canvas.addEventListener('webglcontextrestored', layout);
-
-// ----- easing -----
-const clamp01 = (v) => Math.min(1, Math.max(0, v));
-const easeOutCubic = (u) => 1 - Math.pow(1 - u, 3);
-const easeOutQuart = (u) => 1 - Math.pow(1 - u, 4);  // longer slow-down at the end
-const easeInOutCubic = (u) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
-
-// ----- the gold word, modelled in 3D -----
-const goldMat = new THREE.MeshStandardMaterial({
-  color: 0xe0ac48,
-  metalness: 1,
-  roughness: 0.3,
-  transparent: true,
-  opacity: 0,
-});
-// fine hammered grain, like the coin
-{
-  const c = document.createElement('canvas');
-  c.width = c.height = 256;
-  const g = c.getContext('2d');
-  const img = g.createImageData(256, 256);
-  for (let i = 0; i < img.data.length; i += 4) {
-    const v = 110 + Math.random() * 40;
-    img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
-    img.data[i + 3] = 255;
+  // ---------- motion state ----------
+  // the arrival spin: speed rises quickly, then slows down for a long time
+  const N = 400, curve = new Float32Array(N + 1);
+  {
+    let acc = 0;
+    curve[0] = 0;
+    for (let i = 1; i <= N; i++) {
+      const u = i / N;
+      const ramp = Math.min(1, u / 0.1);
+      const easeRamp = ramp * ramp * (3 - 2 * ramp);
+      acc += easeRamp * (1 - u) * (1 - u);
+      curve[i] = acc;
+    }
+    for (let i = 0; i <= N; i++) curve[i] /= acc;
   }
-  g.putImageData(img, 0, 0);
-  const tex = new THREE.CanvasTexture(c);
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(4, 4);
-  goldMat.bumpMap = tex;
-  goldMat.bumpScale = 0.6;
-}
-
-let wordWidth = 1, wordHeight = 1;
-function buildWord(font) {
-  const size = 1;
-  const geos = [...'BOECE'].map((ch) => {
-    const g = new TextGeometry(ch, {
-      font, size, height: 0.16, depth: 0.16, curveSegments: 10, // 'height' for three r160, 'depth' for newer
-      bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.035, bevelSegments: 5,
-    });
-    g.computeBoundingBox();
-    return g;
-  });
-  let x = 0;
-  const gap = TEXT_SPACING * size;
-  for (const g of geos) {
-    const b = g.boundingBox;
-    const m = new THREE.Mesh(g, goldMat);
-    m.position.x = x - b.min.x;
-    x += b.max.x - b.min.x + gap;
-    word.add(m);
-  }
-  word.scale.setScalar(1); // measure at real size
-  word.updateMatrixWorld(true);
-  const box = new THREE.Box3().setFromObject(word);
-  wordWidth = box.max.x - box.min.x;
-  wordHeight = box.max.y - box.min.y;
-  const center = box.getCenter(new THREE.Vector3());
-  word.children.forEach((m) => { m.position.x -= center.x; m.position.y -= center.y; m.position.z -= box.max.z; });
-  fitWord();
-}
-
-function fitWord() {
-  // letter height in pixels, but never wider than 86% of the screen
-  let s = textPx / wordHeight;
-  s = Math.min(s, (W * 0.86) / wordWidth);
-  word.scale.setScalar(s * pxToWorld);
-}
-
-// ----- load everything, then play -----
-let ready = 0, last = 0, t = 0, titleStart = null;
-// third safety net: what switching tabs does by hand, i.e. make the browser
-// redraw the canvas layer from scratch
-function recomposite() {
-  canvas.style.display = 'none';
-  void canvas.offsetHeight;
-  canvas.style.display = 'block';
-}
-window.addEventListener('pageshow', () => { layout(); recomposite(); });
-
-function loaded() {
-  if (++ready < 2) return;
-  layout();
-  renderer.compile(scene, camera);
-  // draw a few poses off-screen (the canvas is still invisible) so textures, shaders and
-  // buffers are all uploaded before the animation starts
-  for (const a of [0, 0.8, 1.6, 2.4]) {
-    holder.rotation.set(0, a, 0);
-    renderer.render(scene, camera);
-  }
-  holder.rotation.set(0, 0, 0);
-  renderer.render(scene, camera); // uploads textures before the clock starts
-  const go = () => requestAnimationFrame((now) => {
-    // second safety net: force Safari to rebuild the canvas surface once, at the real size
-    renderer.setSize(W, H + 1);
-    renderer.setSize(W, H);
-    last = now;
-    frame(now);
-    recomposite();
-    setTimeout(recomposite, 400);
-  });
-  // wait until the opening sentence has really finished fading out (whatever the browser's timing),
-  // plus a short empty pause, and for the tab to be visible
-  const startAfterIntro = () => {
-    const wait = Math.max(0, window.__introEnd + INTRO_GAP * 1000 - performance.now());
-    setTimeout(() => {
-      if (document.hidden) {
-        document.addEventListener('visibilitychange', function once() {
-          if (!document.hidden) { document.removeEventListener('visibilitychange', once); go(); }
-        });
-      } else go();
-    }, wait);
+  const spinAt = (u) => {
+    const x = Math.min(1, Math.max(0, u)) * N, i = Math.floor(x);
+    return i >= N ? 1 : curve[i] + (curve[i + 1] - curve[i]) * (x - i);
   };
-  if (window.__introEnd) startAfterIntro();
-  else window.addEventListener('introend', startAfterIntro, { once: true });
-}
 
-new GLTFLoader().load(`${MODEL}?v=${V}`, (gltf) => {
-  const coin = gltf.scene;
-  const box = new THREE.Box3().setFromObject(coin);
-  const size = box.getSize(new THREE.Vector3());
-  coin.position.sub(box.getCenter(new THREE.Vector3()));
-  const inner = new THREE.Group();
-  inner.add(coin);
-  inner.scale.setScalar(2 / Math.max(size.x, size.y)); // radius 1
-  holder.add(inner);
-  loaded();
-});
+  let rot = 0;            // current angle
+  let introT = -1;        // time into the arrival spin, -1 = not started
+  let vel = 0;            // free spin speed (rad/s), after a throw
+  let target = null;      // angle we are settling to
+  let dragging = false, lastX = 0, lastMoveT = 0, moved = 0, dragVel = 0;
+  let running = false, last = 0;
 
-new TTFLoader().load(`fonts/cinzel-latin-700-normal.woff?v=${V}`, (json) => {
-  buildWord(new Font(json));
-  loaded();
-});
+  function updateHalo() {
+    if (!halo) return;
+    // the glow follows the coin: round from the front, thin from the side
+    const c = Math.abs(Math.cos(rot));
+    halo.style.transform = `scaleX(${((c * 0.94 + 0.51) / 1.45).toFixed(4)})`;
+  }
 
-layout();
+  function requestRender() {
+    if (!running) { running = true; last = performance.now(); requestAnimationFrame(tick); }
+  }
 
-// ----- animation -----
-function frame(now) {
-  if (sizeIsWrong()) layout();
+  function tick(now) {
+    const dt = Math.min((now - last) / 1000, 0.1);
+    last = now;
+    let busy = false;
 
-  // time advances at most 1/30 s per frame: a slow frame slows the intro down instead of skipping it
-  t += Math.min((now - last) / 1000, 0.1);
-  last = now;
+    if (introT >= 0 && !dragging) {
+      introT += dt;
+      const u = introT / SPIN_TIME;
+      rot = SPIN_TURNS * 2 * Math.PI * spinAt(u);
+      if (u >= 1) { introT = -1; rot = 0; } else busy = true;
+    } else if (!dragging) {
+      if (Math.abs(vel) > 0.6) {
+        rot += vel * dt;
+        vel *= Math.exp(-FRICTION * dt);
+        busy = true;
+      } else {
+        if (target === null) target = Math.round(rot / Math.PI) * Math.PI; // nearest face
+        const d = target - rot;
+        if (Math.abs(d) > 1e-4) {
+          vel = 0;
+          rot += d * (1 - Math.exp(-dt * 7));
+          busy = true;
+        } else { rot = target; target = null; vel = 0; }
+      }
+    } else busy = true;
 
-  // 0. the coin fades in
-  canvas.style.opacity = String(clamp01(t / FADE_IN));
+    holder.rotation.set(0, rot, 0);
+    updateHalo();
+    renderer.render(scene, camera);
+    if (busy) requestAnimationFrame(tick); else running = false;
+  }
 
-  // 1. fast spin that slows down and lands exactly on the front face, then stays still
-  const spinU = clamp01(t / SPIN_TIME);
-  const rot = SPIN_TURNS * 2 * Math.PI * easeOutCubic(spinU);
+  // ---------- interaction: drag to spin, tap to flip ----------
+  canvas.addEventListener('pointerdown', (e) => {
+    if (!e.isPrimary) return;
+    dragging = true; moved = 0; dragVel = 0;
+    lastX = e.clientX; lastMoveT = performance.now();
+    introT = -1; target = null; vel = 0;
+    canvas.setPointerCapture(e.pointerId);
+    requestRender();
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const now = performance.now();
+    const dx = e.clientX - lastX;
+    const dtm = Math.max(1, now - lastMoveT) / 1000;
+    lastX = e.clientX; lastMoveT = now;
+    moved += Math.abs(dx);
+    rot += dx * DRAG_SPEED;
+    dragVel = dragVel * 0.6 + (dx * DRAG_SPEED / dtm) * 0.4;
+  });
+  const release = () => {
+    if (!dragging) return;
+    dragging = false;
+    if (moved < 5) { target = Math.round(rot / Math.PI) * Math.PI + Math.PI; vel = 0; } // tap: flip
+    else { vel = performance.now() - lastMoveT > 120 ? 0 : dragVel; target = null; }
+    requestRender();
+  };
+  canvas.addEventListener('pointerup', release);
+  canvas.addEventListener('pointercancel', release);
+  canvas.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      target = Math.round(rot / Math.PI) * Math.PI + Math.PI;
+      requestRender();
+    }
+  });
 
-  // 2. move up and shrink, uncovering the word
-  const moveU = easeInOutCubic(clamp01((t - SPIN_TIME - PAUSE_TIME) / MOVE_TIME));
-  const r = THREE.MathUtils.lerp(R0, R1, moveU);
-  const cy = THREE.MathUtils.lerp(H / 2, endY, moveU);
+  // ---------- load ----------
+  new GLTFLoader().load(`models/coin.glb?v=${V}`, (gltf) => {
+    const coin = gltf.scene;
+    const box = new THREE.Box3().setFromObject(coin);
+    const s = box.getSize(new THREE.Vector3());
+    coin.position.sub(box.getCenter(new THREE.Vector3()));
+    const inner = new THREE.Group();
+    inner.add(coin);
+    inner.scale.setScalar(2 / Math.max(s.x, s.y)); // radius 1
+    holder.add(inner);
 
-  holder.position.set(0, (H / 2 - cy) * pxToWorld, 0);
-  holder.scale.setScalar(r * pxToWorld);
-  holder.rotation.set(0, spinU < 1 ? rot : 0, 0);
+    resize();
+    // upload everything to the GPU before showing anything
+    renderer.compile(scene, camera);
+    for (const a of [1.2, 2.4, 0]) { holder.rotation.set(0, a, 0); renderer.render(scene, camera); }
 
-  // shadow follows the coin
-  // shadow and halo: invisible at first, fully there when the coin settles,
-  // and they follow the coin's shape (round from the front, thin from the side)
-  const fadeIn = spinU * spinU * (3 - 2 * spinU);
-  const visW = 2 * r * Math.abs(Math.cos(rot)) + 0.14 * r;   // width of the coin as seen on screen
-  const visH = 2 * r;
+    if (POSTER_MODE) { canvas.classList.add('is-live'); document.documentElement.dataset.posterReady = '1'; return; }
 
-  // fixed 200x200 px elements, moved and stretched with transform only (no repaint, no layout)
-  const sw = visW, sh = visH;
-  shadow.style.transform = `translate3d(${W / 2 - 100}px, ${cy - 100 + r * 0.14}px, 0) scale(${sw / 200}, ${sh / 200})`;
-  shadow.style.opacity = fadeIn.toFixed(3);
+    // same pose as the still image: swap invisibly, then spin
+    requestAnimationFrame(() => {
+      canvas.classList.add('is-live');
+      if (poster) poster.classList.add('is-hidden');
+      stage.classList.add('is-interactive');
+      canvas.tabIndex = 0;
+      introT = 0;
+      requestRender();
+    });
+  }, undefined, () => { /* model failed: keep the still image */ });
 
-  const ring = 0.9 * r;                                       // how far the halo reaches past the rim
-  const hw = visW + ring, hh = visH + ring;
-  halo.style.transform = `translate3d(${W / 2 - 100}px, ${cy - 100}px, 0) scale(${hw / 200}, ${hh / 200})`;
-  halo.style.opacity = fadeIn.toFixed(3);
-
-  // 3. the word rises into place
-  // only once the coin has fully settled: the coin and the word never touch
-  // the word starts as soon as the coin's bottom is clear of it: they never touch
-  const coinBottom = cy + r;
-  const wordTop = textY - textPx / 2 - 14;
-  if (titleStart === null && moveU > 0 && coinBottom < wordTop - H * GAP * TITLE_MARGIN) titleStart = t;
-  const reveal = titleStart === null ? 0 : easeOutCubic(clamp01((t - titleStart) / TITLE_TIME));
-  word.position.set(0, (H / 2 - textY - (1 - reveal) * 14) * pxToWorld, 0);
-  goldMat.opacity = reveal;
-
-  renderer.render(scene, camera);
-  requestAnimationFrame(frame);
+  window.addEventListener('resize', resize);
+  new ResizeObserver(resize).observe(stage);
 }
